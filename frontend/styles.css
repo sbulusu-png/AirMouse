@@ -1,0 +1,364 @@
+/* AirMouse: "cyanotype". The camera plate is a blue print, the hand drawn in light;
+   the panel is the cool paper it is mounted on. Sodium yellow means "something is
+   happening right now" and is used for nothing else. */
+
+/* Bundled locally so the app looks the same offline (SIL Open Font License: fonts/OFL.txt).
+   One variable font file covers all weights. */
+@font-face {
+  font-family: "Schibsted Grotesk";
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("fonts/SchibstedGrotesk-latin.woff2") format("woff2");
+}
+
+:root {
+  --ink: #13315c;          /* Prussian blue: text on paper, plate shadow */
+  --field: #1f4e8c;        /* cyanotype mid-tone */
+  --print: #eaf2f8;        /* the light: skeleton, text on the plate */
+  --paper: #f2f5f7;        /* panel ground: cool, not cream */
+  --graphite: #2a3440;     /* body text */
+  --muted: #5d6b7a;        /* secondary text on paper (4.9:1 on paper) */
+  --sodium: #f5b83d;       /* the only accent */
+  --rule: #d5dde4;         /* separators on paper */
+
+  --font: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --step--1: 0.8125rem;    /* 13 */
+  --step-0: 0.9375rem;     /* 15 */
+  --step-1: 1.125rem;      /* 18 */
+  --step-3: 2.25rem;       /* 36 */
+  --space: 8px;
+  --panel-w: 360px;
+  --radius-plate: 14px;
+  --radius-control: 999px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--paper);
+  color: var(--graphite);
+  font: 400 var(--step-0) / 1.45 var(--font);
+}
+
+/* Tabular figures only where numbers change in place (they'd also space punctuation). */
+.readout dd, .slider output { font-variant-numeric: tabular-nums; }
+
+.app {
+  display: grid;
+  grid-template-columns: 1fr var(--panel-w);
+  height: 100%;
+  min-height: 560px;
+}
+
+/* ---- Plate ------------------------------------------------------------------------ */
+
+.plate {
+  position: relative;
+  margin: calc(var(--space) * 2);
+  margin-right: 0;
+  border-radius: var(--radius-plate);
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 30% 20%, #2a63a8 0%, var(--field) 45%, var(--ink) 100%);
+  color: var(--print);
+  isolation: isolate;
+}
+
+/* Cyanotype paper tooth: a faint fibrous grain over the print. */
+.plate::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.plate canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.plate-caption {
+  position: absolute;
+  left: calc(var(--space) * 4);
+  bottom: calc(var(--space) * 3.5);
+  max-width: 34ch;
+  z-index: 1;
+}
+
+.state {
+  margin: 0;
+  font-size: var(--step-3);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.state-hint {
+  margin: calc(var(--space) * 0.75) 0 0;
+  font-size: var(--step-1);
+  color: color-mix(in srgb, var(--print) 78%, transparent);
+}
+
+.plate.is-active .state { color: var(--sodium); }
+
+.toast {
+  position: absolute;
+  top: calc(var(--space) * 3);
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 16px;
+  border-radius: var(--radius-control);
+  background: var(--sodium);
+  color: var(--ink);
+  font-weight: 700;
+  opacity: 0;
+  z-index: 1;
+}
+
+.toast.show { animation: toast 900ms ease-out; }
+
+@keyframes toast {
+  0% { opacity: 0; transform: translate(-50%, -6px); }
+  15%, 70% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; }
+}
+
+.readout {
+  position: absolute;
+  right: calc(var(--space) * 3);
+  bottom: calc(var(--space) * 3.5);
+  display: flex;
+  gap: calc(var(--space) * 3);
+  margin: 0;
+  z-index: 1;
+  font-size: var(--step--1);
+  text-align: right;
+}
+
+.readout dt { color: color-mix(in srgb, var(--print) 65%, transparent); }
+.readout dd { margin: 0; font-weight: 500; }
+
+/* ---- Panel ------------------------------------------------------------------------ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space) * 3);
+  padding: calc(var(--space) * 3) calc(var(--space) * 3) calc(var(--space) * 3);
+  overflow-y: auto;
+}
+
+h1, h2 { margin: 0; color: var(--ink); }
+
+h1 {
+  font-size: var(--step-1);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: var(--step-0);
+  font-weight: 700;
+  margin-bottom: calc(var(--space) * 1.5);
+}
+
+.brand {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  row-gap: var(--space);
+}
+
+.hotkey {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--step--1);
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 5px;
+  border: 1px solid var(--rule);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #fff;
+  color: var(--graphite);
+  font: 500 var(--step--1) / 1.5 var(--font);
+  text-align: center;
+}
+
+/* Switch */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space);
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch[hidden] { display: none; }
+
+.switch-track {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  border-radius: var(--radius-control);
+  background: #b9c4ce;
+  transition: background-color 160ms ease;
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 160ms ease;
+}
+
+.switch input:checked + .switch-track { background: var(--field); }
+.switch input:checked + .switch-track .switch-thumb { transform: translateX(18px); }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.switch-small {
+  grid-column: 1 / -1;
+  font-weight: 400;
+  color: var(--graphite);
+  font-size: var(--step--1);
+}
+
+.switch-small .switch-track { width: 34px; height: 20px; }
+.switch-small .switch-thumb { width: 14px; height: 14px; }
+.switch-small input:checked + .switch-track .switch-thumb { transform: translateX(14px); }
+
+/* "Fit area to my reach" */
+.fit {
+  display: grid;
+  gap: var(--space);
+  margin-bottom: calc(var(--space) * 3);
+}
+
+.fit p { margin: 0; color: var(--muted); font-size: var(--step--1); }
+.fit-actions { display: flex; gap: var(--space); }
+.fit-actions[hidden] { display: none; }
+
+.primary, .secondary {
+  justify-self: start;
+  padding: 9px 16px;
+  border-radius: var(--radius-control);
+  font: 500 var(--step-0) var(--font);
+  cursor: pointer;
+}
+
+.primary { border: 1px solid var(--field); background: var(--field); color: var(--print); }
+.primary:hover { background: var(--ink); border-color: var(--ink); }
+.secondary { border: 1px solid var(--rule); background: #fff; color: var(--ink); }
+.secondary:hover { border-color: var(--field); }
+.primary:focus-visible, .secondary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Gesture guide: the icons are drawn in the plate's own line language. */
+.gestures {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.gestures li {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: calc(var(--space) * 1.5);
+  align-items: center;
+  padding: 8px 10px 8px 6px;
+  border-radius: 10px;
+  transition: background-color 120ms ease;
+}
+
+.gestures svg {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--field);
+}
+
+.gestures svg line { stroke: var(--print); stroke-width: 0.045; stroke-linecap: round; }
+.gestures svg circle { fill: var(--print); }
+.gestures svg circle.focus { fill: none; stroke: var(--print); stroke-width: 0.04; }
+
+.gestures strong { display: block; color: var(--ink); font-weight: 500; }
+.gestures span { display: block; color: var(--muted); font-size: var(--step--1); line-height: 1.35; }
+
+.gestures li.active { background: color-mix(in srgb, var(--sodium) 26%, var(--paper)); }
+.gestures li.active svg { background: var(--ink); }
+.gestures li.active svg line { stroke: var(--sodium); }
+.gestures li.active svg circle { fill: var(--sodium); }
+.gestures li.active svg circle.focus { fill: none; stroke: var(--sodium); }
+
+/* Sliders */
+.sliders { display: grid; gap: calc(var(--space) * 2); }
+
+.slider { display: grid; grid-template-columns: 1fr auto; row-gap: 4px; }
+.slider label { color: var(--graphite); font-weight: 500; }
+.slider output { color: var(--ink); font-weight: 500; }
+.slider p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: var(--step--1); }
+
+.slider input[type="range"] {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin: 4px 0 0;
+  accent-color: var(--field);
+}
+
+.slider input[type="range"]:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+
+.more { margin-top: calc(var(--space) * 2); }
+
+.more summary {
+  cursor: pointer;
+  color: var(--field);
+  font-weight: 500;
+  margin-bottom: calc(var(--space) * 2);
+}
+
+.more summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+
+.reset {
+  margin-top: calc(var(--space) * 2);
+  padding: 8px 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  background: #fff;
+  color: var(--ink);
+  font: 500 var(--step--1) var(--font);
+  cursor: pointer;
+}
+
+.reset:hover { border-color: var(--field); }
+.reset:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Narrow windows: plate on top, panel below. */
+@media (max-width: 820px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: minmax(320px, 56vh) auto; height: auto; }
+  .plate { margin: var(--space); }
+  .panel { padding: calc(var(--space) * 2); }
+  .state { font-size: 1.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation-duration: 1ms !important; }
+}

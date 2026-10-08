@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AirMouse</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app">
+    <section class="plate" aria-label="Camera view">
+      <canvas id="plate" aria-hidden="true"></canvas>
+      <div class="plate-caption" aria-live="polite">
+        <p class="state" id="state">Show your hand</p>
+        <p class="state-hint" id="state-hint">Hold it up, palm facing the screen.</p>
+      </div>
+      <p class="toast" id="toast" role="status"></p>
+      <dl class="readout">
+        <div><dt>Frame rate</dt><dd id="fps">–</dd></div>
+        <div><dt>Hand</dt><dd id="hand">None</dd></div>
+      </dl>
+    </section>
+
+    <aside class="panel">
+      <header class="brand">
+        <h1>AirMouse</h1>
+        <label class="switch">
+          <input type="checkbox" id="enabled" checked>
+          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+          <span class="switch-text">Hand control</span>
+        </label>
+        <p class="hotkey">Turn on or off from anywhere with
+          <kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>M</kbd></p>
+        <label class="switch switch-small" id="autostart-row" hidden>
+          <input type="checkbox" id="autostart">
+          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+          <span class="switch-text">Start with Windows</span>
+        </label>
+      </header>
+
+      <section class="guide" aria-labelledby="guide-title">
+        <h2 id="guide-title">Gestures</h2>
+        <ul class="gestures" id="gestures">
+          <li data-gesture="move"><svg viewBox="-0.72 -0.72 1.44 1.44"></svg>
+            <div><strong>Move</strong><span>Point with your hand</span></div></li>
+          <li data-gesture="click"><svg viewBox="-0.72 -0.72 1.44 1.44"></svg>
+            <div><strong>Click</strong><span>Touch all five fingertips, then open</span></div></li>
+          <li data-gesture="double"><svg viewBox="-0.72 -0.72 1.44 1.44"></svg>
+            <div><strong>Double-click</strong><span>Touch your thumb and index fingertips together</span></div></li>
+          <li data-gesture="tap"><svg viewBox="-0.72 -0.72 1.44 1.44"></svg>
+            <div><strong>Quick click</strong><span>Tap your index finger toward the screen</span></div></li>
+          <li data-gesture="right"><svg viewBox="-0.72 -0.72 1.44 1.44"></svg>
+            <div><strong>Right-click</strong><span>Fold your thumb into your palm, then back out</span></div></li>
+          <li data-gesture="drag"><svg viewBox="-0.72 -0.72 1.44 1.44"></svg>
+            <div><strong>Drag</strong><span>Close your fist to pick up, open to drop</span></div></li>
+          <li data-gesture="scroll"><svg viewBox="-0.72 -0.72 1.44 1.44"></svg>
+            <div><strong>Scroll</strong><span>Two fingers up, then hold above or below where you started</span></div></li>
+        </ul>
+      </section>
+
+      <section class="tuning" aria-labelledby="tuning-title">
+        <h2 id="tuning-title">Feel</h2>
+        <div class="fit" id="fit">
+          <button type="button" class="primary" id="fit-start">Fit area to my reach</button>
+          <p id="fit-text">Sweep your hand to every edge you can comfortably reach. Takes 8 seconds.</p>
+          <div class="fit-actions" id="fit-actions" hidden>
+            <button type="button" class="primary" id="fit-use">Use this area</button>
+            <button type="button" class="secondary" id="fit-keep">Keep current</button>
+          </div>
+        </div>
+        <div class="sliders" id="sliders-main"></div>
+        <details class="more">
+          <summary>More settings</summary>
+          <div class="sliders" id="sliders-more"></div>
+          <button type="button" class="reset" id="reset">Restore defaults</button>
+        </details>
+      </section>
+    </aside>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
