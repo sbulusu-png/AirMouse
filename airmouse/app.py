@@ -153,7 +153,8 @@ class TrayApp:
                 if enabled != self._shown_enabled:
                     self._shown_enabled = enabled
                     self.icon.icon = tray_image(enabled)
-                    self.icon.title = f"{APP_NAME}: hand control {'on' if enabled else 'off'}"
+                    self.icon.title = (f"{APP_NAME}: hand control on" if enabled
+                                       else f"{APP_NAME}: off, camera off")
                     self.icon.update_menu()
                 threading.Event().wait(0.1)
 

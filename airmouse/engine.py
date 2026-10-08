@@ -26,6 +26,7 @@ from .tracker import INDEX_MCP, INDEX_TIP, MIDDLE_MCP, WRIST, Hand, HandTracker
 PREVIEW_WIDTH = 640        # streamed video is downscaled to this width
 JPEG_QUALITY = 70
 CAMERA_RETRY_S = 2.0
+IDLE_CHECK_S = 0.5        # while the camera is off, refresh the window's state this often
 CALIBRATION_S = 8.0       # "fit area to my reach": how long the user sweeps their hand
 REACH_INSET = 0.9         # fit the area slightly inside the extremes reached, so the screen
                           # edges come without straining
@@ -117,6 +118,7 @@ class Engine:
         self._lock = threading.Lock()
         self._restart: set[str] = set()    # components to rebuild: "camera" / "tracker"
         self._stop = threading.Event()
+        self._wake = threading.Event()     # set_enabled / calibration: re-check the camera now
         self._thread: threading.Thread | None = None
         self._snapshot = Snapshot()
         self._notice: str | None = None    # one-shot message for the UI, e.g. failsafe
@@ -146,6 +148,7 @@ class Engine:
 
     def stop(self) -> None:
         self._stop.set()
+        self._wake.set()
         if self._thread is not None:
             self._thread.join(timeout=5)
 
@@ -158,7 +161,9 @@ class Engine:
         return self._enabled
 
     def set_enabled(self, enabled: bool) -> None:
-        self._enabled = enabled  # the engine thread releases buttons when it sees this
+        """Off also switches the camera off (its light goes out); on turns it back on."""
+        self._enabled = enabled  # the engine thread releases buttons/camera when it sees this
+        self._wake.set()
 
     def update_config(self, values: dict[str, Any]) -> dict[str, Any]:
         """Validate and apply settings; returns what changed. Raises ValueError if invalid."""
@@ -179,6 +184,7 @@ class Engine:
         with self._lock:
             self._calibration_count += 1
             self._calibration = Calibration(self._calibration_count)
+        self._wake.set()                   # needs the camera even while hand control is off
 
     def cancel_calibration(self) -> None:
         with self._lock:
@@ -219,6 +225,18 @@ class Engine:
                     tracker.close()
                     tracker = None
 
+                if not self._camera_wanted():
+                    # Hand control off: release the camera so its light goes out. Nobody
+                    # should see a camera on while the app says it's off.
+                    if cam is not None:
+                        cam.release()
+                        cam = None
+                        self._stop_control()
+                    self._publish_idle()
+                    self._wake.wait(IDLE_CHECK_S)
+                    self._wake.clear()
+                    continue
+
                 if cam is None:
                     cam = self._open_camera()
                     if cam is None:
@@ -243,6 +261,10 @@ class Engine:
                 tracker.close()
             if log is not None:
                 log.close()
+
+    def _camera_wanted(self) -> bool:
+        cal = self._calibration
+        return self._enabled or (cal is not None and cal.active)
 
     def _open_camera(self) -> Camera | None:
         try:
@@ -439,11 +461,12 @@ class Engine:
                      frame_size: tuple[int, int], now: float) -> dict[str, Any]:
         fw, fh = frame_size
         x0, y0, x1, y1 = self._region(frame_size)
-        notice, self._notice = self._notice, None
+        notice = self._take_notice()
         return {
             "type": "state",
             "fps": round(self._fps, 1),
             "enabled": self._enabled,
+            "camera": True,
             "error": None,
             "notice": notice,
             "frame_size": [fw, fh],
@@ -464,6 +487,21 @@ class Engine:
             "left_push": round(gesture.left_push, 3) if gesture else 0.0,
             "right_push": round(gesture.right_push, 3) if gesture else 0.0,
         }
+
+    def _publish_idle(self) -> None:
+        """State while the camera is off (hand control off)."""
+        state = {"type": "state", "fps": 0.0, "enabled": self._enabled, "camera": False,
+                 "error": None, "notice": self._take_notice(), "hand": None,
+                 "mode": Mode.NO_HAND.name, "events": [], "scroll": 0, "left_push": 0.0,
+                 "right_push": 0.0, "calibration": self._calibration_state(time.perf_counter())}
+        with self._lock:
+            self._snapshot = Snapshot(None, None, state)
+        if self.on_update is not None:
+            self.on_update(state, None)
+
+    def _take_notice(self) -> str | None:
+        notice, self._notice = self._notice, None
+        return notice
 
     def _publish_error(self, message: str) -> None:
         state = {"type": "state", "fps": 0.0, "enabled": self._enabled, "error": message,

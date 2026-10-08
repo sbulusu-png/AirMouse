@@ -14,7 +14,8 @@ const STATES = {
   RIGHT_PRESS: ["Thumb folded", "Bring it back out to right-click."],
   GRAB: ["Holding", "Open your hand to drop it."],
   SCROLL: ["Scrolling", "Hold above the line to scroll up, below it to scroll down."],
-  PAUSED: ["Paused", "Hand control is off. Ctrl Alt M turns it back on."],
+  PAUSED: ["Paused, camera off", "Hand control and the camera are off. Turn them back on "
+           + "with the switch above or Ctrl Alt M."],
   OFFLINE: ["Reconnecting", "Lost contact with AirMouse. Trying again…"],
   FITTING: ["Fitting your area", "Move your hand slowly to every edge you can comfortably reach."],
   FITTED: ["Your area is ready", "The solid box fits your reach. Use it or keep the current one."],
@@ -455,6 +456,10 @@ function plateText(s) {
 
 function onState(s) {
   latest = s;
+  if (s.camera === false && video) {      // camera switched off: drop the last picture
+    video.close();
+    video = null;
+  }
   const mode = s.enabled ? (s.hand ? s.mode : "NO_HAND") : "PAUSED";
   const [title, hint] = plateText(s);
   updateFit(s.calibration || null);

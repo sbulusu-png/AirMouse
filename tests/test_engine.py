@@ -435,3 +435,84 @@ def test_pinch_sends_one_double_click(engine):
     from .hands import pinch
     step_all(engine, [REST] * 10 + pinch() + [REST] * 5)
     assert [c[0] for c in engine.cursor.calls if c[0] != "move"] == ["double_click"]
+
+
+# --- Hand control off = camera off --------------------------------------------------------------
+
+class CountingCamera:
+    """Fake camera that records opens and releases (the light being on)."""
+    opened = 0
+    released = 0
+    size = FS
+
+    def __init__(self, *args, **kwargs):
+        type(self).opened += 1
+
+    def read(self):
+        time.sleep(1 / 30)
+        return FRAME
+
+    def release(self):
+        type(self).released += 1
+
+    @classmethod
+    def on(cls) -> bool:
+        return cls.opened > cls.released
+
+
+def _wait_for(cond, timeout=5.0) -> bool:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if cond():
+            return True
+        time.sleep(0.02)
+    return False
+
+
+@pytest.fixture
+def counting_engine(monkeypatch):
+    CountingCamera.opened = CountingCamera.released = 0
+    monkeypatch.setattr(engine_mod, "Camera", CountingCamera)
+    monkeypatch.setattr(engine_mod, "HandTracker", lambda cfg: ScriptedTracker([]))
+    monkeypatch.setattr(engine_mod, "IDLE_CHECK_S", 0.05)
+    engines = []
+
+    def make(enabled: bool) -> Engine:
+        e = Engine(Config(), enabled=enabled)
+        e.cursor = FakeCursor()  # type: ignore[assignment]
+        e.start()
+        engines.append(e)
+        return e
+
+    yield make
+    for e in engines:
+        e.stop()
+
+
+def test_turning_hand_control_off_turns_the_camera_off(counting_engine):
+    """User report: the camera stayed on after switching hand control off."""
+    e = counting_engine(True)
+    assert _wait_for(CountingCamera.on)
+    e.set_enabled(False)
+    assert _wait_for(lambda: not CountingCamera.on())
+    assert e.snapshot().state["camera"] is False
+    e.set_enabled(True)
+    assert _wait_for(CountingCamera.on)                       # back on with hand control
+    assert e.snapshot().state.get("camera") is True or _wait_for(
+        lambda: e.snapshot().state.get("camera") is True)
+
+
+def test_starting_paused_never_opens_the_camera(counting_engine):
+    e = counting_engine(False)
+    time.sleep(0.4)
+    assert CountingCamera.opened == 0
+    assert e.snapshot().state["camera"] is False
+
+
+def test_calibrating_while_paused_uses_the_camera_only_for_the_sweep(counting_engine, monkeypatch):
+    monkeypatch.setattr(engine_mod, "CALIBRATION_S", 0.3)
+    e = counting_engine(False)
+    e.start_calibration()
+    assert _wait_for(CountingCamera.on)
+    assert _wait_for(lambda: not CountingCamera.on())         # off again once it's done
+    assert e.snapshot().state["calibration"]["active"] is False
